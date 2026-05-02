@@ -133,6 +133,7 @@ export default function Sidebar({ tabs, activeTab, setActiveTab, setShowMethodol
       <div style={{ padding: "12px 8px 0", borderTop: "1px solid #111827", marginTop: 8 }}>
         <a
           style={{
+            width: "100%",
             display: "inline-block",
             fontSize: 10,
             color: "#374151",
@@ -146,6 +147,24 @@ export default function Sidebar({ tabs, activeTab, setActiveTab, setShowMethodol
           rel="noreferrer"
         >
           Frontend only GitHub
+        </a>
+        <a
+          style={{
+            width: "100%",
+            marginTop: "4px",
+            display: "inline-block",
+            fontSize: 10,
+            color: "#374151",
+            background: "#111827",
+            border: "1px solid #1f2937",
+            borderRadius: 4,
+            padding: "3px 8px",
+          }}
+          href="https://docs.google.com/spreadsheets/d/1ZTThconUW2ym2Sdmw9hub8I1d2jzhuGk0gqR0DsB96Y"
+          target="_blank"
+          rel="noreferrer"
+        >
+          Результаты тестирования
         </a>
       </div>
     </aside>

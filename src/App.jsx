@@ -112,10 +112,10 @@ export default function App() {
         mode: "no-cors",
         body: JSON.stringify({ results: rows }),
       });
-      addToast("Results sent to Google Sheets.");
+      addToast("Результаты отправлены в Google Sheets.");
       return true;
     } catch {
-      addToast("Failed to export to Google Sheets.");
+      addToast("Ошибка при отправке в Google Sheets.");
       return false;
     }
   };
