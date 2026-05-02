@@ -131,7 +131,7 @@ export default function Sidebar({ tabs, activeTab, setActiveTab, setShowMethodol
       </button>
 
       <div style={{ padding: "12px 8px 0", borderTop: "1px solid #111827", marginTop: 8 }}>
-        <span
+        <a
           style={{
             display: "inline-block",
             fontSize: 10,
@@ -141,9 +141,12 @@ export default function Sidebar({ tabs, activeTab, setActiveTab, setShowMethodol
             borderRadius: 4,
             padding: "3px 8px",
           }}
+          href="https://github.com/LEVALEXEEV/web-storage-benchmark"
+          target="_blank"
+          rel="noreferrer"
         >
-          Frontend only
-        </span>
+          Frontend only GitHub
+        </a>
       </div>
     </aside>
   );
