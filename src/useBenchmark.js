@@ -68,9 +68,7 @@ const fillRandomBytes = (bytes) => {
   }
 };
 
-const buildJsonPayload = (templateText, targetBytes, keyCount) => {
-  const bytesPerKey = Math.max(1, Math.floor(targetBytes / keyCount));
-
+const buildJsonPayload = (templateText, bytesPerKey) => {
   let baseItem = null;
   try {
     const parsed = JSON.parse(templateText);
@@ -100,10 +98,9 @@ const buildJsonPayload = (templateText, targetBytes, keyCount) => {
   return jsonText;
 };
 
-const buildRawBytes = (pattern, targetBytes, keyCount) => {
-  const bytesPerKey = Math.max(1, Math.floor(targetBytes / keyCount));
+const buildRawBytes = (pattern, bytesPerKey) => {
   const bytes = new Uint8Array(bytesPerKey);
-  
+
   if (pattern === "zeros") {
     return bytes;
   }
@@ -403,16 +400,21 @@ export default function useBenchmark() {
     const keys = buildKeys(keyCount, prefix);
     const shouldBatch = keyCount >= 10000;
 
-    const jsonPayload = buildJsonPayload(config.jsonTemplate, dataSize, keyCount);
-    const rawBytes = buildRawBytes(config.rawPattern, dataSize, keyCount);
+    const bytesPerKey = Math.max(1, Math.floor(dataSize / keyCount));
+
+    const jsonPayload = buildJsonPayload(config.jsonTemplate, bytesPerKey);
+
+    // для LocalStorage учитываем +33% от base64
+    const bytesPerKeyForLS = Math.floor(bytesPerKey / 1.34);
+
+    const rawBytesLS = buildRawBytes(config.rawPattern, bytesPerKeyForLS);
+    const rawBytesRest = buildRawBytes(config.rawPattern, bytesPerKey);
 
     const payloadForTarget = {
-      localStorage:
-        config.dataType === "raw" ? base64FromBytes(rawBytes) : jsonPayload,
-      indexedDB: config.dataType === "raw" ? rawBytes : jsonPayload,
-      cacheAPI: config.dataType === "raw" ? rawBytes : jsonPayload,
+      localStorage: config.dataType === "raw" ? base64FromBytes(rawBytesLS) : jsonPayload,
+      indexedDB: config.dataType === "raw" ? rawBytesRest : jsonPayload,
+      cacheAPI: config.dataType === "raw" ? rawBytesRest : jsonPayload,
     };
-
     const adapters = {
       localStorage: createLocalStorageAdapter(),
       indexedDB: createIndexedDbAdapter(),
