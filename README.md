@@ -1,16 +1,22 @@
-# React + Vite
+# Web Storage Benchmark
 
-This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
+Простое приложение для сравнения производительности Web Storage в браузере.
 
-Currently, two official plugins are available:
+- [Песочница](https://se.ifmo.ru/~s505996/web-storage-benchmark/)
+- [Таблица с результатами пользователей](https://docs.google.com/spreadsheets/d/1ZTThconUW2ym2Sdmw9hub8I1d2jzhuGk0gqR0DsB96Y)
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Oxc](https://oxc.rs)
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/)
+## Локальный запуск
 
-## React Compiler
+1) Установите зависимости:
 
-The React Compiler is not enabled on this template because of its impact on dev & build performances. To add it, see [this documentation](https://react.dev/learn/react-compiler/installation).
+```
+npm install
+```
 
-## Expanding the ESLint configuration
+2) Запустите dev-сервер:
 
-If you are developing a production application, we recommend using TypeScript with type-aware lint rules enabled. Check out the [TS template](https://github.com/vitejs/vite/tree/main/packages/create-vite/template-react-ts) for information on how to integrate TypeScript and [`typescript-eslint`](https://typescript-eslint.io) in your project.
+```
+npm run dev
+```
+
+Откройте ссылку из терминала в браузере.
