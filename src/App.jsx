@@ -8,22 +8,10 @@ import MethodologyModal from "./components/MethodologyModal";
 import ConfigurePanel from "./components/panels/ConfigurePanel";
 import RunPanel from "./components/panels/RunPanel";
 import ResultsPanel from "./components/panels/ResultsPanel";
+import getBrowserLabel from "./utils/getBrowser";
 
 const SHEETS_WEB_APP_URL =
   "https://script.google.com/macros/s/AKfycbzjHsqb-bCUUMFQOHZpKnedqxi4GUSz-0dvEB-xpK3dxVpdTMIHz8zBzIqhKNZS7kKQPg/exec";
-
-const getBrowserLabel = () => {
-  const ua = navigator.userAgent || "";
-  const edge = ua.match(/Edg\/([\d.]+)/);
-  if (edge) return `Edge ${edge[1]}`;
-  const chrome = ua.match(/Chrome\/([\d.]+)/);
-  if (chrome && !ua.includes("Edg/")) return `Chrome ${chrome[1]}`;
-  const firefox = ua.match(/Firefox\/([\d.]+)/);
-  if (firefox) return `Firefox ${firefox[1]}`;
-  const safari = ua.match(/Version\/([\d.]+).*Safari/);
-  if (safari) return `Safari ${safari[1]}`;
-  return "Unknown";
-};
 
 export default function App() {
   const [activeTab, setActiveTab] = useState("configure");

@@ -11,6 +11,7 @@ import Field from "../ui/Field";
 import GhostBtn from "../ui/GhostBtn";
 import PrimaryBtn from "../ui/PrimaryBtn";
 import Section from "../ui/Section";
+import getBrowserLabel from "../../utils/getBrowser";
 
 export default function ConfigurePanel({ config, updateConfig, setActiveTab }) {
     return (
@@ -23,7 +24,11 @@ export default function ConfigurePanel({ config, updateConfig, setActiveTab }) {
                     Настройте данные и нагрузку перед запуском теста.
                 </p>
             </div>
-
+            <Section>
+                <Field label="Версия браузера">
+                    {getBrowserLabel()}
+                </Field>
+            </Section>
             <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16 }}>
                 <Section>
                     <Field label="Размер данных">
