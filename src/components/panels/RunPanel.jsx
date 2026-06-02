@@ -13,7 +13,6 @@ export default function RunPanel({
     results,
     progress,
     errorLog,
-    addToast,
 }) {
     const selectedStorage = STORAGE_TARGETS.filter((t) => config.storageTargets[t.id]).map((t) => t.label);
     const selectedOperations = OPERATIONS.filter((o) => config.operations[o.id]).map((o) => o.label);
@@ -62,12 +61,7 @@ export default function RunPanel({
                         ) : (
                             <PrimaryBtn
                                 disabled={!canStart}
-                                onClick={() =>
-                                    run(config, {
-                                        onWarning: addToast,
-                                        onError: (entry) => addToast(`Error: ${entry.message}`),
-                                    })
-                                }
+                                onClick={() => run(config)}
                             >
                                 ▶ Запустить
                             </PrimaryBtn>

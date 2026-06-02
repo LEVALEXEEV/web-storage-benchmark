@@ -3,8 +3,6 @@ import {
     BarChart,
     CartesianGrid,
     Legend,
-    Line,
-    LineChart,
     ResponsiveContainer,
     Tooltip,
     XAxis,
@@ -24,6 +22,14 @@ const tooltipStyle = {
     color: "#e2e8f0",
     fontSize: 12,
 };
+
+const STATUS_STYLES = {
+    ok: { background: "#052e1633", border: "#16a34a44", color: "#4ade80" },
+    error: { background: "#450a0a33", border: "#dc262644", color: "#f87171" },
+    skipped: { background: "#1f293733", border: "#4b556366", color: "#9ca3af" },
+};
+
+const getStatusStyle = (status) => STATUS_STYLES[status] || STATUS_STYLES.error;
 
 export default function ResultsPanel({
     results,
@@ -83,25 +89,11 @@ export default function ResultsPanel({
         [uniqueOperations, uniqueStorages, results]
     );
 
-    const sizeValues = useMemo(
-        () => [...new Set(results.map((e) => e.dataSize))].sort((a, b) => a - b),
-        [results]
-    );
-
-    const lineChartData = useMemo(
-        () => sizeValues.map((size) => {
-            const row = { size, sizeLabel: formatDataSize(size) };
-            uniqueStorages.forEach((s) => { row[s] = results.find((e) => e.target === s && e.dataSize === size)?.duration || 0; });
-            return row;
-        }),
-        [sizeValues, uniqueStorages, results]
-    );
-
     const heatmapCells = useMemo(() => {
         const vals = [];
         uniqueStorages.forEach((s) => uniqueOperations.forEach((op) => {
-            const v = results.find((e) => e.target === s && e.operation === op)?.duration || 0;
-            if (v !== 0) vals.push(v);
+            const entry = results.find((e) => e.target === s && e.operation === op);
+            if (entry && entry.status === "ok") vals.push(entry.duration);
         }));
         return { min: vals.length ? Math.min(...vals) : 0, max: vals.length ? Math.max(...vals) : 1 };
     }, [uniqueStorages, uniqueOperations, results]);
@@ -229,7 +221,7 @@ export default function ResultsPanel({
                                     </td>
                                     <td style={{ padding: "9px 14px", color: "#6b7280" }}>{formatDataSize(row.dataSize)}</td>
                                     <td style={{ padding: "9px 14px", color: "#a5b4fc", fontVariantNumeric: "tabular-nums" }}>
-                                        {row.time.toFixed(2)}
+                                        {row.time.toFixed(1)}
                                     </td>
                                     <td style={{ padding: "9px 14px", color: "#6b7280", fontVariantNumeric: "tabular-nums" }}>
                                         {formatNumber(Math.round(row.ops))}
@@ -242,9 +234,9 @@ export default function ResultsPanel({
                                                 padding: "2px 8px",
                                                 borderRadius: 4,
                                                 letterSpacing: "0.04em",
-                                                background: row.status === "ok" ? "#052e1633" : "#450a0a33",
-                                                border: `1px solid ${row.status === "ok" ? "#16a34a44" : "#dc262644"}`,
-                                                color: row.status === "ok" ? "#4ade80" : "#f87171",
+                                                background: getStatusStyle(row.status).background,
+                                                border: `1px solid ${getStatusStyle(row.status).border}`,
+                                                color: getStatusStyle(row.status).color,
                                             }}
                                         >
                                             {row.status}
@@ -332,7 +324,8 @@ export default function ResultsPanel({
                                         <StorageDot label={storage} />
                                     </div>
                                     {uniqueOperations.map((op) => {
-                                        const value = results.find((e) => e.target === storage && e.operation === op)?.duration || 0;
+                                        const entry = results.find((e) => e.target === storage && e.operation === op);
+                                        const value = entry && entry.status === "ok" ? entry.duration : null;
                                         const ratio =
                                             value === null
                                                 ? 0

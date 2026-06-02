@@ -66,7 +66,7 @@ export default function MethodologyModal({ onClose }) {
                         title: "IndexedDB",
                         color: "#38bdf8",
                         points: [
-                            "Asynchronous with transactions; batching improves throughput.",
+                            "Асинхронный с транзакциями; батчинг улучшает производительность.",
                             "Большой размер, но все еще может быть удалена браузером.",
                             "Safari / iOS могут иметь более строгие ограничения или блокировку в приватном режиме.",
                         ],

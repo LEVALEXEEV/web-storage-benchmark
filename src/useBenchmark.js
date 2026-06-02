@@ -51,14 +51,6 @@ const base64FromBytes = (bytes) => {
   return btoa(binary);
 };
 
-const bytesFromBase64 = (base64) => {
-  const binary = atob(base64 || "");
-  const bytes = new Uint8Array(binary.length);
-  for (let i = 0; i < binary.length; i += 1) {
-    bytes[i] = binary.charCodeAt(i);
-  }
-  return bytes;
-};
 
 const fillRandomBytes = (bytes) => {
   const chunkSize = 65536;
@@ -69,7 +61,7 @@ const fillRandomBytes = (bytes) => {
 };
 
 const buildJsonPayload = (templateText, bytesPerKey) => {
-  let baseItem = null;
+  let baseItem;
   try {
     const parsed = JSON.parse(templateText);
     baseItem = Array.isArray(parsed) ? parsed[0] : parsed;
@@ -127,6 +119,29 @@ const openDatabase = () =>
     request.onsuccess = () => resolve(request.result);
     request.onerror = () => reject(request.error);
   });
+
+// Переиспользуем одно соединение, чтобы openDatabase() не попадал в каждый замер.
+let dbPromise = null;
+const getDatabase = () => {
+  if (!dbPromise) {
+    dbPromise = openDatabase()
+      .then((db) => {
+        db.onclose = () => {
+          dbPromise = null;
+        };
+        db.onversionchange = () => {
+          db.close();
+          dbPromise = null;
+        };
+        return db;
+      })
+      .catch((error) => {
+        dbPromise = null;
+        throw error;
+      });
+  }
+  return dbPromise;
+};
 
 const canUseLocalStorage = () => {
   try {
@@ -202,7 +217,7 @@ const createLocalStorageAdapter = () => ({
 
 const createIndexedDbAdapter = () => ({
   async write(entries) {
-    const db = await openDatabase();
+    const db = await getDatabase();
     const list = Array.isArray(entries) ? entries : [entries];
     await new Promise((resolve, reject) => {
       const tx = db.transaction(STORE_NAME, "readwrite");
@@ -213,7 +228,7 @@ const createIndexedDbAdapter = () => ({
     });
   },
   async read(keys) {
-    const db = await openDatabase();
+    const db = await getDatabase();
     const list = Array.isArray(keys) ? keys : [keys];
     return new Promise((resolve, reject) => {
       const tx = db.transaction(STORE_NAME, "readonly");
@@ -233,7 +248,7 @@ const createIndexedDbAdapter = () => ({
     return this.write(entries);
   },
   async delete(keys) {
-    const db = await openDatabase();
+    const db = await getDatabase();
     const list = Array.isArray(keys) ? keys : [keys];
     await new Promise((resolve, reject) => {
       const tx = db.transaction(STORE_NAME, "readwrite");
@@ -244,7 +259,7 @@ const createIndexedDbAdapter = () => ({
     });
   },
   async iterate(prefix) {
-    const db = await openDatabase();
+    const db = await getDatabase();
     return new Promise((resolve, reject) => {
       const tx = db.transaction(STORE_NAME, "readonly");
       const store = tx.objectStore(STORE_NAME);
@@ -264,7 +279,7 @@ const createIndexedDbAdapter = () => ({
     });
   },
   async clear(prefix) {
-    const db = await openDatabase();
+    const db = await getDatabase();
     await new Promise((resolve, reject) => {
       const tx = db.transaction(STORE_NAME, "readwrite");
       const store = tx.objectStore(STORE_NAME);
@@ -297,7 +312,14 @@ const createCacheAdapter = () => ({
   async read(keys) {
     const cache = await caches.open(CACHE_NAME);
     const list = Array.isArray(keys) ? keys : [keys];
-    return Promise.all(list.map((key) => cache.match(key)));
+    // match() возвращает Response без чтения тела — десериализуем содержимое,
+    // чтобы замер read был сопоставим с localStorage/IndexedDB.
+    return Promise.all(
+      list.map(async (key) => {
+        const response = await cache.match(key);
+        return response ? response.arrayBuffer() : null;
+      })
+    );
   },
   async update(entries) {
     return this.write(entries);
@@ -360,7 +382,7 @@ export default function useBenchmark() {
     setProgress((current) => ({ ...current, label: "Stopped" }));
   }, []);
 
-  const run = useCallback(async (config, options = {}) => {
+  const run = useCallback(async (config) => {
     if (status === "running") {
       return;
     }
@@ -377,8 +399,6 @@ export default function useBenchmark() {
       console.error("[Benchmark] Storage cleanup error:", error);
     }
 
-    const onWarning = typeof options.onWarning === "function" ? options.onWarning : null;
-    const onError = typeof options.onError === "function" ? options.onError : null;
     const reportError = (context, error) => {
       const message = error instanceof Error ? error.message : String(error ?? "Unknown error");
       const entry = {
@@ -389,9 +409,6 @@ export default function useBenchmark() {
       };
       setErrorLog((prev) => [entry, ...prev].slice(0, 200));
       console.error("Benchmark error:", entry, error);
-      if (onError) {
-        onError(entry);
-      }
     };
 
     const keyCount = parseKeyCount(config.keyCount);
@@ -404,8 +421,9 @@ export default function useBenchmark() {
 
     const jsonPayload = buildJsonPayload(config.jsonTemplate, bytesPerKey);
 
-    // для LocalStorage учитываем +33% от base64
-    const bytesPerKeyForLS = Math.floor(bytesPerKey / 1.34);
+    // для LocalStorage: base64 раздувает данные в 4/3 раза по символам,
+    // а строки хранятся в UTF-16 (2 байта/символ) => итоговый множитель 8/3
+    const bytesPerKeyForLS = Math.max(1, Math.floor((bytesPerKey * 3) / 8));
 
     const rawBytesLS = buildRawBytes(config.rawPattern, bytesPerKeyForLS);
     const rawBytesRest = buildRawBytes(config.rawPattern, bytesPerKey);
@@ -444,15 +462,20 @@ export default function useBenchmark() {
 
       setProgress({ current: 0, total: 0, label: `Checking ${targetLabels[target]}...` });
       let isAvailable = false;
+      let checkThrew = false;
       try {
         isAvailable = await availabilityChecks[target]();
       } catch (error) {
         hadErrors = true;
+        checkThrew = true;
         reportError({ stage: "availability", target: targetLabels[target] }, error);
       }
       if (!isAvailable) {
-        if (onWarning) {
-          onWarning(`${targetLabels[target]} is unavailable in this environment.`);
+        if (!checkThrew) {
+          reportError(
+            { stage: "availability", target: targetLabels[target], reason: "unavailable" },
+            `${targetLabels[target]} is unavailable in this environment.`
+          );
         }
         continue;
       }
@@ -476,18 +499,16 @@ export default function useBenchmark() {
       } catch (error) {
         hadErrors = true;
         const isQuotaError = error?.name === "QuotaExceededError" || error?.message?.includes("quota");
-        if (isQuotaError) {
-          reportError({ stage: "warm-up", target: targetLabels[target], reason: "quota" }, error);
-          if (onWarning) {
-            onWarning(`${targetLabels[target]}: Storage quota exceeded. Try clearing browser data or using smaller payload.`);
-          }
-        } else {
-          reportError({ stage: "warm-up", target: targetLabels[target] }, error);
-          if (onWarning) {
-            onWarning(`${targetLabels[target]} warm-up failed and was skipped.`);
-          }
+        reportError(
+          { stage: "warm-up", target: targetLabels[target], reason: isQuotaError ? "quota" : "other" },
+          error
+        );
+        // Превышение квоты — легитимный результат эксперимента, а не повод исключить
+        // хранилище: пускаем его в прогон, где ошибка записи будет зафиксирована.
+        // Прочие ошибки означают нерабочий API — такой таргет исключаем.
+        if (!isQuotaError) {
+          continue;
         }
-        continue;
       }
 
       availableTargets.push(target);
@@ -507,19 +528,52 @@ export default function useBenchmark() {
         const needsData = operations.some((op) => ["read", "update", "iterate", "delete"].includes(op));
         const hasWrite = operations.includes("write");
 
+        // Если запись данных (предзаполнение или операция Write) провалилась,
+        // последующие операции работают по отсутствующим/частичным данным —
+        // помечаем их статусом "skipped" вместо бессмысленного замера.
+        let dataWriteFailed = false;
+
         if (needsData && !hasWrite) {
           setProgress({ current, total, label: `${targetLabels[target]} -> Pre-populating data...` });
-          const batches = shouldBatch ? chunkArray(keyList, BATCH_SIZE) : [keyList];
-          for (const batch of batches) {
-            if (stopRef.current) return;
-            const entries = batch.map((key) => ({ key, value: payload }));
-            await adapter.write(entries);
+          try {
+            const batches = shouldBatch ? chunkArray(keyList, BATCH_SIZE) : [keyList];
+            for (const batch of batches) {
+              if (stopRef.current) return;
+              const entries = batch.map((key) => ({ key, value: payload }));
+              await adapter.write(entries);
+            }
+          } catch (e) {
+            hadErrors = true;
+            dataWriteFailed = true;
+            const isQuotaError = e?.name === "QuotaExceededError" || e?.message?.includes("quota");
+            reportError(
+              { stage: "pre-populate", target: targetLabels[target], reason: isQuotaError ? "quota" : "other" },
+              e
+            );
           }
         }
 
         for (const operation of operations) {
           if (stopRef.current) {
             return;
+          }
+
+          // Write — источник данных; всё, что после провалившейся записи, пропускаем.
+          if (dataWriteFailed && operation !== "write") {
+            setResults((prev) => [
+              ...prev,
+              {
+                target: targetLabels[target],
+                operation: opLabels[operation],
+                duration: 0,
+                keyCount,
+                dataSize,
+                status: "skipped",
+              },
+            ]);
+            current += 1;
+            setProgress((currentProgress) => ({ ...currentProgress, current }));
+            continue;
           }
 
           let duration = 0;
@@ -555,11 +609,8 @@ export default function useBenchmark() {
                   duration += performance.now() - start;
                 } else if (operation === "read") {
                   start = performance.now();
-                  const values = await adapter.read(batch);
+                  await adapter.read(batch);
                   duration += performance.now() - start;
-                  if (config.dataType === "raw" && target === "localStorage") {
-                    values.forEach((value) => bytesFromBase64(value));
-                  }
                 } else if (operation === "delete") {
                   start = performance.now();
                   await adapter.delete(batch);
@@ -579,6 +630,10 @@ export default function useBenchmark() {
 
           if (opError) {
             hadErrors = true;
+            // Провал самой записи означает, что данных для дальнейших операций нет.
+            if (operation === "write") {
+              dataWriteFailed = true;
+            }
             const isQuotaError = opError?.name === "QuotaExceededError" || opError?.message?.includes("quota");
             reportError({
               stage: "run",

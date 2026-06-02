@@ -8,7 +8,6 @@ import {
 } from "../../constants";
 import Chip from "../ui/Chip";
 import Field from "../ui/Field";
-import GhostBtn from "../ui/GhostBtn";
 import PrimaryBtn from "../ui/PrimaryBtn";
 import Section from "../ui/Section";
 import getBrowserLabel from "../../utils/getBrowser";

@@ -27,7 +27,7 @@ export default function App() {
   const [toasts, setToasts] = useState([]);
   const [showMethodology, setShowMethodology] = useState(false);
   const hasExportedRef = useRef(false);
-  
+
   const { run, stop, results, progress, status, clearResults, errorLog } = useBenchmark();
 
   const updateConfig = (key, value) =>
@@ -55,11 +55,13 @@ export default function App() {
           operations: { ...c.operations, ...(parsed.operations || {}) },
         }));
       }
-    } catch { }
+    } catch (e) {
+      console.warn("Failed to load config from localStorage:", e);
+    }
   }, []);
 
   useEffect(() => {
-    try { localStorage.setItem("bench_config", JSON.stringify(config)); } catch { }
+    try { localStorage.setItem("bench_config", JSON.stringify(config)); } catch (e) { console.warn("Failed to save config to localStorage:", e); }
   }, [config]);
 
   useEffect(() => {
@@ -71,21 +73,23 @@ export default function App() {
   const buildExportRows = () => {
     const browser = getBrowserLabel();
     const dataType = config.dataType === "json" ? "JSON" : "Raw";
-    return results.map((entry) => {
-      const duration = Number(entry.duration) || 0;
-      const opsSec = duration > 0 ? Math.round(entry.keyCount / (duration / 1000)) : 0;
-      return {
-        storage: entry.target,
-        dataType,
-        browser,
-        operation: entry.operation,
-        keys: entry.keyCount,
-        size: formatDataSize(entry.dataSize),
-        timeMs: Number(duration.toFixed(2)),
-        opsSec,
-        status: entry.status || "ok",
-      };
-    });
+    return results
+      .filter((entry) => entry.status !== "skipped")
+      .map((entry) => {
+        const duration = Number(entry.duration) || 0;
+        const opsSec = duration > 0 ? Math.round(entry.keyCount / (duration / 1000)) : 0;
+        return {
+          storage: entry.target,
+          dataType,
+          browser,
+          operation: entry.operation,
+          keys: entry.keyCount,
+          size: formatDataSize(entry.dataSize),
+          timeMs: Number(duration.toFixed(2)),
+          opsSec,
+          status: entry.status || "ok",
+        };
+      });
   };
 
   const sendToSheets = async (rows) => {
@@ -174,7 +178,6 @@ export default function App() {
               results={results}
               progress={progress}
               errorLog={errorLog}
-              addToast={addToast}
             />
           )}
 
