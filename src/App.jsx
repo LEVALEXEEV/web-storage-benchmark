@@ -22,7 +22,7 @@ export default function App() {
     rawPattern: "random",
     keyCount: "100",
     storageTargets: { localStorage: true, indexedDB: true, cacheAPI: false },
-    operations: { write: true, read: true, update: false, delete: false, iterate: false },
+    operations: { write: true, read: true, delete: false, iterate: false },
   });
   const [toasts, setToasts] = useState([]);
   const [showMethodology, setShowMethodology] = useState(false);

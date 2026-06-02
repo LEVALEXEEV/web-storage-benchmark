@@ -9,7 +9,6 @@ const STORE_NAME = "records";
 const opLabels = {
   write: "Write",
   read: "Read",
-  update: "Update",
   delete: "Delete",
   iterate: "Iterate",
 };
@@ -185,10 +184,6 @@ const createLocalStorageAdapter = () => ({
     const list = Array.isArray(keys) ? keys : [keys];
     return list.map((key) => localStorage.getItem(key));
   },
-  async update(entries) {
-    const list = Array.isArray(entries) ? entries : [entries];
-    list.forEach(({ key, value }) => localStorage.setItem(key, value));
-  },
   async delete(keys) {
     const list = Array.isArray(keys) ? keys : [keys];
     list.forEach((key) => localStorage.removeItem(key));
@@ -243,9 +238,6 @@ const createIndexedDbAdapter = () => ({
       tx.oncomplete = () => resolve(Promise.all(requests));
       tx.onerror = () => reject(tx.error);
     });
-  },
-  async update(entries) {
-    return this.write(entries);
   },
   async delete(keys) {
     const db = await getDatabase();
@@ -320,9 +312,6 @@ const createCacheAdapter = () => ({
         return response ? response.arrayBuffer() : null;
       })
     );
-  },
-  async update(entries) {
-    return this.write(entries);
   },
   async delete(keys) {
     const cache = await caches.open(CACHE_NAME);
@@ -442,7 +431,7 @@ export default function useBenchmark() {
     const selectedTargets = Object.keys(config.storageTargets).filter(
       (key) => config.storageTargets[key]
     );
-    const ORDER = ["write", "read", "update", "iterate", "delete"];
+    const ORDER = ["write", "read", "iterate", "delete"];
     const operations = ORDER.filter(
       (key) => config.operations[key]
     );
@@ -525,7 +514,7 @@ export default function useBenchmark() {
         const keyList = target === "cacheAPI" ? toCacheKeys(keys) : keys;
         await adapter.clear(target === "cacheAPI" ? "https://bench/" : prefix);
 
-        const needsData = operations.some((op) => ["read", "update", "iterate", "delete"].includes(op));
+        const needsData = operations.some((op) => ["read", "iterate", "delete"].includes(op));
         const hasWrite = operations.includes("write");
 
         // Если запись данных (предзаполнение или операция Write) провалилась,
@@ -602,7 +591,7 @@ export default function useBenchmark() {
                 setProgress({ current, total, label });
 
                 let start = 0;
-                if (operation === "write" || operation === "update") {
+                if (operation === "write") {
                   const entries = batch.map((key) => ({ key, value: payload }));
                   start = performance.now();
                   await adapter[operation](entries);

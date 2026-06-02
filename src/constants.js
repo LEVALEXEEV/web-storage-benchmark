@@ -19,7 +19,6 @@ export const STORAGE_STYLES = {
 export const OPERATIONS = [
   { id: "write", label: "Write" },
   { id: "read", label: "Read" },
-  { id: "update", label: "Update" },
   { id: "delete", label: "Delete" },
   { id: "iterate", label: "Iterate" },
 ];
