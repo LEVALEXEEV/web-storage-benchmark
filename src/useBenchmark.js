@@ -424,7 +424,8 @@ export default function useBenchmark() {
     const selectedTargets = Object.keys(config.storageTargets).filter(
       (key) => config.storageTargets[key]
     );
-    const operations = Object.keys(config.operations).filter(
+    const ORDER = ["write", "read", "update", "iterate", "delete"];
+    const operations = ORDER.filter(
       (key) => config.operations[key]
     );
 
@@ -502,6 +503,19 @@ export default function useBenchmark() {
         const payload = payloadForTarget[target];
         const keyList = target === "cacheAPI" ? toCacheKeys(keys) : keys;
         await adapter.clear(target === "cacheAPI" ? "https://bench/" : prefix);
+
+        const needsData = operations.some((op) => ["read", "update", "iterate", "delete"].includes(op));
+        const hasWrite = operations.includes("write");
+
+        if (needsData && !hasWrite) {
+          setProgress({ current, total, label: `${targetLabels[target]} -> Pre-populating data...` });
+          const batches = shouldBatch ? chunkArray(keyList, BATCH_SIZE) : [keyList];
+          for (const batch of batches) {
+            if (stopRef.current) return;
+            const entries = batch.map((key) => ({ key, value: payload }));
+            await adapter.write(entries);
+          }
+        }
 
         for (const operation of operations) {
           if (stopRef.current) {
